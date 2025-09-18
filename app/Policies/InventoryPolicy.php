@@ -13,7 +13,8 @@ class InventoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        // Todos los roles pueden ver la lista de inventarios
+        return in_array($user->role, ['owner', 'manager', 'employee']);
     }
 
     /**
@@ -21,7 +22,19 @@ class InventoryPolicy
      */
     public function view(User $user, Inventory $inventory): bool
     {
-        return false;
+        switch ($user->role) {
+            case 'owner':
+                // Owner puede ver inventarios de todas sus sucursales
+                return $inventory->branch->id_user === $user->id;
+                
+            case 'manager':
+            case 'employee':
+                // Manager y employee solo pueden ver inventarios de su sucursal
+                return $inventory->id_branch === $user->id_branch;
+                
+            default:
+                return false;
+        }
     }
 
     /**
@@ -29,7 +42,8 @@ class InventoryPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        // Owner y manager pueden crear inventarios
+        return in_array($user->role, ['owner', 'manager']);
     }
 
     /**
@@ -37,7 +51,18 @@ class InventoryPolicy
      */
     public function update(User $user, Inventory $inventory): bool
     {
-        return false;
+        switch ($user->role) {
+            case 'owner':
+                // Owner puede editar inventarios de todas sus sucursales
+                return $inventory->branch->id_user === $user->id;
+                
+            case 'manager':
+                // Manager solo puede editar inventarios de su sucursal
+                return $inventory->id_branch === $user->id_branch;
+                
+            default:
+                return false;
+        }
     }
 
     /**
@@ -45,7 +70,18 @@ class InventoryPolicy
      */
     public function delete(User $user, Inventory $inventory): bool
     {
-        return false;
+        switch ($user->role) {
+            case 'owner':
+                // Owner puede eliminar inventarios de todas sus sucursales
+                return $inventory->branch->id_user === $user->id;
+                
+            case 'manager':
+                // Manager solo puede eliminar inventarios de su sucursal
+                return $inventory->id_branch === $user->id_branch;
+                
+            default:
+                return false;
+        }
     }
 
     /**
@@ -53,7 +89,8 @@ class InventoryPolicy
      */
     public function restore(User $user, Inventory $inventory): bool
     {
-        return false;
+        // Solo owner puede restaurar
+        return $user->role === 'owner' && $inventory->branch->id_user === $user->id;
     }
 
     /**
@@ -61,6 +98,7 @@ class InventoryPolicy
      */
     public function forceDelete(User $user, Inventory $inventory): bool
     {
-        return false;
+        // Solo owner puede eliminar permanentemente
+        return $user->role === 'owner' && $inventory->branch->id_user === $user->id;
     }
 }

@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use \Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Exception;
 
 class ProductController extends Controller implements HasMiddleware
 {
+    use AuthorizesRequests;
     /**
      * Definición de middlewares para este controlador
      */

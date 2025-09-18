@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class InventoryController extends Controller implements HasMiddleware
 {
+    use AuthorizesRequests;
     /**
      * Definición de middlewares para este controlador
      */
@@ -128,31 +130,32 @@ class InventoryController extends Controller implements HasMiddleware
     {
         $this->authorize('view', $inventory);
         
-        // Cargar productos con información de panadería
-        $inventory->load([
-            'branch',
-            'products' => function($query) {
-                $query->orderBy('name');
-            }
-        ]);
-        
-        // Clasificación especial para panaderías
-        $productsAnalysis = [
-            'productos_frescos' => $inventory->products->filter(function($product) {
-                return $product->expiration_days <= 3; // Pan fresco, pasteles, etc.
-            }),
-            'productos_secos' => $inventory->products->filter(function($product) {
-                return $product->expiration_days > 30; // Harinas, azúcar, etc.
-            }),
-            'proximos_vencer' => $inventory->products->filter(function($product) {
-                return $product->is_expiring;
-            }),
-            'stock_critico' => $inventory->products->filter(function($product) {
-                return $product->is_low_stock;
-            })
-        ];
-        
+        // Si es una petición AJAX (para el modal de vista rápida)
         if ($request->ajax()) {
+            // Cargar productos con información de panadería
+            $inventory->load([
+                'branch',
+                'products' => function($query) {
+                    $query->orderBy('name');
+                }
+            ]);
+            
+            // Clasificación especial para panaderías
+            $productsAnalysis = [
+                'productos_frescos' => $inventory->products->filter(function($product) {
+                    return $product->expiration_days <= 3; // Pan fresco, pasteles, etc.
+                }),
+                'productos_secos' => $inventory->products->filter(function($product) {
+                    return $product->expiration_days > 30; // Harinas, azúcar, etc.
+                }),
+                'proximos_vencer' => $inventory->products->filter(function($product) {
+                    return $product->is_expiring;
+                }),
+                'stock_critico' => $inventory->products->filter(function($product) {
+                    return $product->is_low_stock;
+                })
+            ];
+            
             return response()->json([
                 'success' => true,
                 'inventory' => $inventory,
@@ -162,7 +165,9 @@ class InventoryController extends Controller implements HasMiddleware
             ]);
         }
 
-        return view('inventories.show', compact('inventory', 'productsAnalysis'));
+        // Para navegación directa, redirigir al índice de productos del inventario
+        return redirect()->route('inventories.products.index', $inventory)
+            ->with('info', "Mostrando productos del inventario: {$inventory->name}");
     }
 
     /**

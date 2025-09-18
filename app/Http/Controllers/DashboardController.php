@@ -25,7 +25,7 @@ class DashboardController extends Controller
                 'description' => 'Gestiona el stock de productos',
                 'icon' => 'fas fa-boxes',
                 'color' => 'blue',
-                'route' => 'inventory.index',
+                'route' => 'inventories.index',
                 'roles' => ['owner', 'manager', 'employee']
             ],
             'sales' => [
@@ -35,22 +35,6 @@ class DashboardController extends Controller
                 'color' => 'green',
                 'route' => 'sales.index',
                 'roles' => ['owner', 'manager', 'employee']
-            ],
-            'products' => [
-                'name' => 'Productos',
-                'description' => 'Catálogo de productos',
-                'icon' => 'fas fa-bread-slice',
-                'color' => 'amber',
-                'route' => 'products.index',
-                'roles' => ['owner', 'manager', 'employee']
-            ],
-            'reports' => [
-                'name' => 'Reportes',
-                'description' => 'Análisis y reportes de negocio',
-                'icon' => 'fas fa-chart-line',
-                'color' => 'purple',
-                'route' => 'reports.index',
-                'roles' => ['owner', 'manager']
             ],
             'branches' => [
                 'name' => 'Sucursales',
@@ -68,22 +52,7 @@ class DashboardController extends Controller
                 'route' => 'users.index',
                 'roles' => ['owner', 'manager']
             ],
-            'transfers' => [
-                'name' => 'Traslados',
-                'description' => 'Traslados entre sucursales',
-                'icon' => 'fas fa-truck',
-                'color' => 'orange',
-                'route' => 'transfers.index',
-                'roles' => ['owner', 'manager']
-            ],
-            'profile' => [
-                'name' => 'Mi Perfil',
-                'description' => 'Configuración personal',
-                'icon' => 'fas fa-user-cog',
-                'color' => 'gray',
-                'route' => 'profile.edit',
-                'roles' => ['owner', 'manager', 'employee']
-            ]
+
         ];
         
         // Filtrar módulos según el rol del usuario
