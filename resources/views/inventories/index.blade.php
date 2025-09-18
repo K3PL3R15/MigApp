@@ -504,46 +504,119 @@ function displayInventoryDetails(inventory, analysis) {
 function editInventory(inventoryId) {
     currentInventoryId = inventoryId;
     
-    // Cargar datos del inventario
-    fetch(`{{ url('inventories') }}/${inventoryId}`, {
+    console.log('Iniciando edición de inventario:', inventoryId);
+    
+    // Cargar datos del inventario usando la ruta edit
+    fetch(`{{ url('inventories') }}/${inventoryId}/edit`, {
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
-            // Llenar formulario con datos actuales
-            document.getElementById('edit-inventory-id').value = inventoryId;
-            document.getElementById('edit-name').value = data.inventory.name;
-            document.getElementById('edit-type').value = data.inventory.type;
-            document.getElementById('edit-branch').value = data.inventory.id_branch;
+        console.log('Datos recibidos del servidor:', data);
+        
+        if (data.success && data.inventory) {
+            // Asegurar que el modal esté completamente cargado antes de llenar
+            setTimeout(() => {
+                // Llenar formulario con datos actuales
+                const nameField = document.getElementById('edit-name');
+                const typeField = document.getElementById('edit-type');
+                const branchField = document.getElementById('edit-branch');
+                const idField = document.getElementById('edit-inventory-id');
+                
+                if (nameField) nameField.value = data.inventory.name || '';
+                if (typeField) typeField.value = data.inventory.type || '';
+                if (branchField) branchField.value = data.inventory.id_branch || '';
+                if (idField) idField.value = inventoryId;
+                
+                // Si hay datos de sucursales disponibles, actualizar el select
+                if (data.branches && data.branches.length > 0 && branchField) {
+                    branchField.innerHTML = '';
+                    
+                    data.branches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch.id_branch;
+                        option.textContent = branch.name;
+                        option.selected = branch.id_branch == data.inventory.id_branch;
+                        branchField.appendChild(option);
+                    });
+                }
+                
+                console.log('Formulario llenado con:', {
+                    name: nameField ? nameField.value : 'campo no encontrado',
+                    type: typeField ? typeField.value : 'campo no encontrado', 
+                    branch: branchField ? branchField.value : 'campo no encontrado',
+                    id: idField ? idField.value : 'campo no encontrado'
+                });
+            }, 100);
             
             openModal('edit-inventory');
         } else {
-            alert('Error al cargar los datos del inventario');
+            throw new Error(data.message || 'Error al cargar los datos del inventario');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al cargar los datos del inventario');
+        alert('Error al cargar los datos del inventario: ' + error.message);
     });
 }
 
 // Función para enviar edición
 function submitEditInventory(event) {
     event.preventDefault();
-    const formData = new FormData(event.target);
+    
+    // Verificar que todos los campos estén llenos
+    const name = document.getElementById('edit-name').value.trim();
+    const type = document.getElementById('edit-type').value;
+    const branchId = document.getElementById('edit-branch').value;
+    
+    if (!name || !type || !branchId) {
+        alert('Por favor, complete todos los campos obligatorios.');
+        return;
+    }
+    
+    // Crear FormData con todos los campos necesarios
+    const formData = new FormData();
+    formData.append('_method', 'PUT');
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+    formData.append('name', name);
+    formData.append('type', type);
+    formData.append('id_branch', branchId);
+    
+    console.log('Enviando datos:', {
+        name: name,
+        type: type,
+        id_branch: branchId
+    });
+    
+    // Mostrar loading
+    const submitButton = document.querySelector('#edit-inventory button[onclick*="edit-inventory-form"]');
+    const originalText = submitButton ? submitButton.innerHTML : '';
+    if (submitButton) {
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Actualizando...';
+        submitButton.disabled = true;
+    }
     
     fetch(`{{ url('inventories') }}/${currentInventoryId}`, {
-        method: 'PUT',
+        method: 'POST', // Usar POST con _method=PUT para formularios
         body: formData,
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             closeModal('edit-inventory');
@@ -553,8 +626,14 @@ function submitEditInventory(event) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error al actualizar el inventario');
+        console.error('Error completo:', error);
+        alert('Error al actualizar el inventario: ' + error.message);
+    })
+    .finally(() => {
+        if (submitButton) {
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        }
     });
 }
 

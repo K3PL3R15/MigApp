@@ -13,9 +13,11 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class SaleController extends Controller implements HasMiddleware
 {
+    use AuthorizesRequests;
     /**
      * Definición de middlewares para este controlador
      */

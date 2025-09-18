@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Sale;
 use App\Models\User;
+use App\Models\Branch;
 use Illuminate\Auth\Access\Response;
 
 class SalePolicy
@@ -13,7 +14,8 @@ class SalePolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        // Todos los roles autenticados pueden ver la lista de ventas
+        return in_array($user->role, ['owner', 'manager', 'employee']);
     }
 
     /**
@@ -21,7 +23,12 @@ class SalePolicy
      */
     public function view(User $user, Sale $sale): bool
     {
-        return false;
+        // Verificar que el usuario tenga acceso a la sucursal de la venta
+        return match ($user->role) {
+            'owner' => $sale->branch->id_user === $user->id,
+            'manager', 'employee' => $sale->id_branch === $user->id_branch,
+            default => false
+        };
     }
 
     /**
@@ -29,7 +36,8 @@ class SalePolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        // Todos los roles pueden crear ventas
+        return in_array($user->role, ['owner', 'manager', 'employee']);
     }
 
     /**
@@ -37,7 +45,16 @@ class SalePolicy
      */
     public function update(User $user, Sale $sale): bool
     {
-        return false;
+        // Solo owner y manager pueden editar ventas, y deben tener acceso a la sucursal
+        if (!in_array($user->role, ['owner', 'manager'])) {
+            return false;
+        }
+        
+        return match ($user->role) {
+            'owner' => $sale->branch->id_user === $user->id,
+            'manager' => $sale->id_branch === $user->id_branch,
+            default => false
+        };
     }
 
     /**
@@ -45,7 +62,16 @@ class SalePolicy
      */
     public function delete(User $user, Sale $sale): bool
     {
-        return false;
+        // Solo owner y manager pueden eliminar ventas, y deben tener acceso a la sucursal
+        if (!in_array($user->role, ['owner', 'manager'])) {
+            return false;
+        }
+        
+        return match ($user->role) {
+            'owner' => $sale->branch->id_user === $user->id,
+            'manager' => $sale->id_branch === $user->id_branch,
+            default => false
+        };
     }
 
     /**
@@ -53,7 +79,8 @@ class SalePolicy
      */
     public function restore(User $user, Sale $sale): bool
     {
-        return false;
+        // Solo el owner puede restaurar ventas eliminadas
+        return $user->role === 'owner' && $sale->branch->id_user === $user->id;
     }
 
     /**
@@ -61,6 +88,7 @@ class SalePolicy
      */
     public function forceDelete(User $user, Sale $sale): bool
     {
-        return false;
+        // Solo el owner puede eliminar permanentemente
+        return $user->role === 'owner' && $sale->branch->id_user === $user->id;
     }
 }

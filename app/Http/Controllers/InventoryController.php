@@ -276,7 +276,8 @@ class InventoryController extends Controller implements HasMiddleware
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'html' => view('inventories.partials.edit-form', compact('inventory', 'branches'))->render()
+                'inventory' => $inventory->toArray(),
+                'branches' => $branches->toArray()
             ]);
         }
         
@@ -290,7 +291,15 @@ class InventoryController extends Controller implements HasMiddleware
     {
         $this->authorize('update', $inventory);
         
-        $request->validate([
+        // Log de datos recibidos para debugging
+        Log::info('Actualizando inventario - Datos recibidos', [
+            'inventory_id' => $inventory->id_inventory,
+            'request_data' => $request->all(),
+            'method' => $request->method(),
+            'user_id' => Auth::id()
+        ]);
+        
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name'      => 'required|string|max:255',
             'type'      => 'required|in:sale_product,raw_material',
             'id_branch' => 'required|exists:branches,id_branch',
@@ -300,6 +309,26 @@ class InventoryController extends Controller implements HasMiddleware
             'type.in' => 'Tipo de inventario no válido.',
             'id_branch.exists' => 'La sucursal seleccionada no existe.'
         ]);
+        
+        if ($validator->fails()) {
+            Log::warning('Validación fallida en actualización de inventario', [
+                'inventory_id' => $inventory->id_inventory,
+                'errors' => $validator->errors()->toArray(),
+                'request_data' => $request->all()
+            ]);
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
         
         try {
             $oldData = $inventory->toArray();
@@ -350,6 +379,19 @@ class InventoryController extends Controller implements HasMiddleware
     {
         $this->authorize('delete', $inventory);
         
+        // Verificar si el inventario existe
+        if (!$inventory || !$inventory->exists) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El inventario no existe o ya fue eliminado.'
+                ], 404);
+            }
+            
+            return redirect()->route('inventories.index')
+                ->with('error', 'El inventario no existe o ya fue eliminado.');
+        }
+        
         // Verificar si tiene productos
         if ($inventory->products()->count() > 0) {
             if ($request->ajax()) {
@@ -364,13 +406,25 @@ class InventoryController extends Controller implements HasMiddleware
         }
         
         try {
+            DB::beginTransaction();
+            
             $inventoryName = $inventory->name;
-            $inventory->delete();
+            $inventoryId = $inventory->id_inventory;
+            
+            // Eliminar el inventario
+            $deleted = $inventory->delete();
+            
+            if (!$deleted) {
+                throw new \Exception('No se pudo eliminar el inventario de la base de datos.');
+            }
             
             Log::info('Inventario eliminado', [
+                'inventory_id' => $inventoryId,
                 'inventory_name' => $inventoryName,
                 'user_id' => Auth::id()
             ]);
+            
+            DB::commit();
             
             if ($request->ajax()) {
                 return response()->json([
@@ -383,21 +437,24 @@ class InventoryController extends Controller implements HasMiddleware
                 ->with('success', "Inventario '{$inventoryName}' eliminado con éxito.");
                 
         } catch (\Exception $e) {
+            DB::rollback();
+            
             Log::error('Error eliminando inventario', [
-                'inventory_id' => $inventory->id_inventory,
+                'inventory_id' => $inventory->id_inventory ?? 'unknown',
                 'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al eliminar el inventario.'
-                ], 422);
+                    'message' => 'Error al eliminar el inventario: ' . $e->getMessage()
+                ], 500);
             }
             
             return redirect()->back()
-                ->with('error', 'Error al eliminar el inventario.');
+                ->with('error', 'Error al eliminar el inventario: ' . $e->getMessage());
         }
     }
 }

@@ -145,9 +145,9 @@
         </div>
         
         <!-- Lista de productos -->
-        <div class="glass-card rounded-lg p-6">
+        <div class="glass-card rounded-lg overflow-hidden">
             @if($products->isEmpty())
-                <div class="text-center py-12">
+                <div class="text-center py-12 px-6">
                     <div class="text-gray-400 text-6xl mb-4">
                         <i class="fas fa-box-open"></i>
                     </div>
@@ -170,101 +170,132 @@
                     @endcan
                 </div>
             @else
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Encabezados de tabla -->
+                <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <div class="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div class="col-span-3">Producto</div>
+                        <div class="col-span-1 text-center">Precio</div>
+                        <div class="col-span-2 text-center">Stock</div>
+                        <div class="col-span-2 text-center">Estado</div>
+                        @if($inventory->type === 'sale_product')
+                            <div class="col-span-2 text-center">Vencimiento</div>
+                        @else
+                            <div class="col-span-2 text-center">Información</div>
+                        @endif
+                        <div class="col-span-2 text-center">Acciones</div>
+                    </div>
+                </div>
+                
+                <!-- Filas de productos -->
+                <div class="divide-y divide-gray-200">
                     @foreach($products as $product)
-                        <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 relative">
-                            <!-- Indicadores de estado -->
-                            <div class="absolute top-2 right-2 flex flex-col space-y-1">
-                                @if(isset($product->is_expired) && $product->is_expired)
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                        <i class="fas fa-times-circle mr-1"></i>Vencido
-                                    </span>
-                                @elseif(isset($product->is_expiring) && $product->is_expiring)
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                        <i class="fas fa-clock mr-1"></i>Por vencer
-                                    </span>
-                                @endif
+                        <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                            <div class="grid grid-cols-12 gap-4 items-center">
+                                <!-- Información del producto -->
+                                <div class="col-span-3">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm">
+                                            {{ strtoupper(substr($product->name, 0, 2)) }}
+                                        </div>
+                                        <div>
+                                            <h3 class="font-semibold text-gray-800 text-sm leading-5">{{ $product->name }}</h3>
+                                            <p class="text-xs text-gray-500">
+                                                {{ $product->unit ?? 'unidades' }}
+                                                @if($inventory->type === 'sale_product' && $product->expiration_days <= 3)
+                                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
+                                                        <i class="fas fa-bread-slice mr-1"></i>Fresco
+                                                    </span>
+                                                @elseif($inventory->type === 'raw_material' && $product->expiration_days > 30)
+                                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800">
+                                                        <i class="fas fa-seedling mr-1"></i>Seco
+                                                    </span>
+                                                @endif
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                                 
-                                @if($product->is_low_stock)
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                        <i class="fas fa-exclamation-triangle mr-1"></i>Stock bajo
-                                    </span>
-                                @endif
-                            </div>
-                            
-                            <!-- Información del producto -->
-                            <div class="mb-3">
-                                <h3 class="font-semibold text-gray-800 text-sm mb-1 pr-16">{{ $product->name }}</h3>
-                                <p class="text-gray-600 text-xs">
-                                    <i class="fas fa-tag mr-1"></i>{{ $product->formatted_price ?? '$' . number_format($product->price, 0) }}
-                                    @if($product->lote)
-                                        <span class="ml-2"><i class="fas fa-calendar mr-1"></i>{{ $product->lote->format('d/m/Y') }}</span>
-                                    @endif
-                                </p>
-                            </div>
-                            
-                            <!-- Stock -->
-                            <div class="mb-3">
-                                <div class="flex justify-between items-center text-sm mb-1">
-                                    <span class="text-gray-600">Stock</span>
-                                    <span class="font-medium {{ $product->is_low_stock ? 'text-red-600' : 'text-gray-800' }}">
-                                        {{ $product->stock }} {{ $product->unit ?? 'unidades' }}
-                                    </span>
+                                <!-- Precio -->
+                                <div class="col-span-1 text-center">
+                                    <span class="font-semibold text-gray-800">${{ number_format($product->price, 0) }}</span>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    @php
-                                        $percentage = $product->min_stock > 0 ? min(100, ($product->stock / $product->min_stock) * 100) : 100;
-                                        $colorClass = $percentage <= 50 ? 'bg-red-500' : ($percentage <= 80 ? 'bg-amber-500' : 'bg-green-500');
-                                    @endphp
-                                    <div class="h-2 rounded-full {{ $colorClass }}" style="width: {{ max(5, $percentage) }}%"></div>
+                                
+                                <!-- Stock con barra de progreso -->
+                                <div class="col-span-2">
+                                    <div class="text-center mb-1">
+                                        <span class="font-medium {{ $product->is_low_stock ? 'text-red-600' : 'text-gray-800' }}">
+                                            {{ $product->stock }}
+                                        </span>
+                                        <span class="text-gray-400 text-xs">/ {{ $product->min_stock }} min</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        @php
+                                            $percentage = $product->min_stock > 0 ? min(100, ($product->stock / $product->min_stock) * 100) : 100;
+                                            $colorClass = $percentage <= 50 ? 'bg-red-500' : ($percentage <= 80 ? 'bg-amber-500' : 'bg-green-500');
+                                        @endphp
+                                        <div class="h-2 rounded-full {{ $colorClass }}" style="width: {{ max(5, $percentage) }}%"></div>
+                                    </div>
                                 </div>
-                                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                    <span>Min: {{ $product->min_stock }}</span>
-                                    <span>Valor: ${{ number_format($product->stock * $product->price, 0) }}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Botones de acción -->
-                            <div class="flex justify-between items-center">
-                                <div class="flex space-x-1">
-                                    <button onclick="viewProduct({{ $product->id_product }})" 
-                                            class="text-blue-600 hover:text-blue-800 text-sm" 
-                                            title="Ver detalles">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    
-                                    @can('update', $product)
-                                        <button onclick="editProduct({{ $product->id_product }})" 
-                                                class="text-amber-600 hover:text-amber-800 text-sm" 
-                                                title="Editar producto">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
+                                
+                                <!-- Estado -->
+                                <div class="col-span-2 text-center">
+                                    <div class="flex flex-wrap justify-center gap-1">
+                                        @if(isset($product->is_expired) && $product->is_expired)
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                <i class="fas fa-times-circle mr-1"></i>Vencido
+                                            </span>
+                                        @elseif(isset($product->is_expiring) && $product->is_expiring)
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                <i class="fas fa-clock mr-1"></i>Por vencer
+                                            </span>
+                                        @endif
                                         
-                                        <button onclick="adjustStock({{ $product->id_product }})" 
-                                                class="text-green-600 hover:text-green-800 text-sm" 
-                                                title="Ajustar stock">
-                                            <i class="fas fa-adjust"></i>
-                                        </button>
-                                    @endcan
-                                    
-                                    @can('delete', $product)
-                                        <button onclick="deleteProduct({{ $product->id_product }}, '{{ $product->name }}')" 
-                                                class="text-red-600 hover:text-red-800 text-sm" 
-                                                title="Eliminar producto">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    @endcan
+                                        @if($product->is_low_stock)
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>Stock bajo
+                                            </span>
+                                        @endif
+                                        
+                                        @if(!$product->is_low_stock && !isset($product->is_expired) && !isset($product->is_expiring))
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <i class="fas fa-check-circle mr-1"></i>Normal
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
                                 
-                                @if($inventory->type === 'sale_product' && $product->expiration_days <= 3)
-                                    <div class="text-xs text-gray-500">
-                                        <i class="fas fa-bread-slice mr-1"></i>Fresco
+                                <!-- Información adicional -->
+                                <div class="col-span-2 text-center">
+                                    @if($product->lote)
+                                        <div class="text-xs text-gray-600">
+                                            <i class="fas fa-calendar mr-1"></i>{{ $product->lote->format('d/m/Y') }}
+                                        </div>
+                                    @endif
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        Valor: ${{ number_format($product->stock * $product->price, 0) }}
                                     </div>
-                                @elseif($inventory->type === 'raw_material' && $product->expiration_days > 30)
-                                    <div class="text-xs text-gray-500">
-                                        <i class="fas fa-seedling mr-1"></i>Seco
+                                </div>
+                                
+                                <!-- Botones de acción -->
+                                <div class="col-span-2">
+                                    <div class="flex justify-center space-x-2">
+                                        @if(in_array(auth()->user()->role, ['owner', 'manager', 'employee']))
+                                            <button onclick="editProduct({{ $product->id_product }})" 
+                                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors" 
+                                                    title="Editar producto y stock">
+                                                <i class="fas fa-edit mr-1"></i>Editar
+                                            </button>
+                                        @endif
+                                        
+                                        @if(in_array(auth()->user()->role, ['owner', 'manager']))
+                                            <button onclick="deleteProduct({{ $product->id_product }}, '{{ $product->name }}')" 
+                                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-100 rounded-md hover:bg-red-200 transition-colors" 
+                                                    title="Eliminar producto">
+                                                <i class="fas fa-trash mr-1"></i>Eliminar
+                                            </button>
+                                        @endif
                                     </div>
-                                @endif
+                                </div>
                             </div>
                         </div>
                     @endforeach
@@ -387,27 +418,6 @@
         </x-slot>
     </x-migapp.modal>
     
-    <!-- Modal para Ver Producto -->
-    <x-migapp.modal id="view-product" max-width="xl">
-        <x-slot name="header">
-            <h3 class="text-lg font-medium text-gray-900">
-                <i class="fas fa-eye mr-2 text-blue-600"></i>
-                <span id="view-product-title">Detalles del Producto</span>
-            </h3>
-        </x-slot>
-        
-        <div id="view-product-content" class="space-y-4">
-            <x-migapp.loading type="spinner" message="Cargando detalles..." />
-        </div>
-        
-        <x-slot name="footer">
-            <div class="flex justify-end">
-                <x-migapp.button variant="secondary" onclick="closeModal('view-product')">
-                    Cerrar
-                </x-migapp.button>
-            </div>
-        </x-slot>
-    </x-migapp.modal>
     
     <!-- Modal para Editar Producto -->
     <x-migapp.modal id="edit-product" max-width="lg">
@@ -510,95 +520,6 @@
         </x-slot>
     </x-migapp.modal>
     
-    <!-- Modal para Ajustar Stock -->
-    <x-migapp.modal id="adjust-stock" max-width="md">
-        <x-slot name="header">
-            <h3 class="text-lg font-medium text-gray-900">
-                <i class="fas fa-adjust mr-2 text-green-600"></i>
-                <span id="adjust-stock-title">Ajustar Stock</span>
-            </h3>
-        </x-slot>
-        
-        <form id="adjust-stock-form" onsubmit="submitAdjustStock(event)">
-            @csrf
-            <input type="hidden" id="adjust-product-id" name="product_id">
-            
-            <div class="space-y-4">
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <h4 class="font-semibold text-gray-800 mb-2">Información Actual</h4>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <label class="text-gray-600">Producto:</label>
-                            <p id="adjust-product-name" class="font-medium text-gray-800">-</p>
-                        </div>
-                        <div>
-                            <label class="text-gray-600">Stock Actual:</label>
-                            <p id="adjust-current-stock" class="font-medium text-gray-800">-</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="adjustment" class="block text-sm font-medium text-gray-700 mb-1">
-                            Ajuste *
-                        </label>
-                        <input type="number" id="adjustment" name="adjustment" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                               placeholder="+10 para agregar, -5 para quitar" required>
-                        <p class="text-xs text-gray-500 mt-1">Números positivos agregan, negativos quitan</p>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Nuevo Stock
-                        </label>
-                        <div id="new-stock-preview" class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
-                            -
-                        </div>
-                    </div>
-                </div>
-                
-                <div>
-                    <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">
-                        Razón del Ajuste *
-                    </label>
-                    <select id="reason" name="reason" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            required>
-                        <option value="">Seleccionar razón...</option>
-                        <option value="Producción diaria">Producción diaria</option>
-                        <option value="Venta">Venta</option>
-                        <option value="Merma">Merma/Desperdicio</option>
-                        <option value="Devolución">Devolución</option>
-                        <option value="Inventario físico">Conteo físico</option>
-                        <option value="Corrección">Corrección de error</option>
-                        <option value="Otro">Otro motivo</option>
-                    </select>
-                </div>
-                
-                <div id="other-reason" class="hidden">
-                    <label for="other-reason-text" class="block text-sm font-medium text-gray-700 mb-1">
-                        Especificar razón
-                    </label>
-                    <input type="text" id="other-reason-text" name="other_reason" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                           placeholder="Describe el motivo del ajuste...">
-                </div>
-            </div>
-        </form>
-        
-        <x-slot name="footer">
-            <div class="flex justify-end space-x-3">
-                <x-migapp.button variant="secondary" onclick="closeModal('adjust-stock')">
-                    Cancelar
-                </x-migapp.button>
-                <x-migapp.button variant="primary" onclick="document.getElementById('adjust-stock-form').requestSubmit()">
-                    <i class="fas fa-check mr-2"></i>Ajustar Stock
-                </x-migapp.button>
-            </div>
-        </x-slot>
-    </x-migapp.modal>
 @endsection
 
 @push('styles')
@@ -659,179 +580,103 @@ function submitCreateProduct(event) {
     });
 }
 
-// Función para ver producto
-function viewProduct(productId) {
-    currentProductId = productId;
-    
-    // Abrir modal y mostrar loading
-    openModal('view-product');
-    document.getElementById('view-product-content').innerHTML = `
-        <div class="flex items-center justify-center py-8">
-            <div class="text-center">
-                <i class="fas fa-spinner fa-spin text-3xl text-blue-600 mb-2"></i>
-                <p class="text-gray-600">Cargando detalles del producto...</p>
-            </div>
-        </div>
-    `;
-    
-    fetch(`/inventories/${inventoryId}/products/${productId}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            displayProductDetails(data.product, data.bakery_info);
-        } else {
-            document.getElementById('view-product-content').innerHTML = `
-                <div class="text-center py-8 text-red-600">
-                    <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
-                    <p>Error al cargar los detalles</p>
-                </div>
-            `;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('view-product-content').innerHTML = `
-            <div class="text-center py-8 text-red-600">
-                <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
-                <p>Error al cargar los detalles</p>
-            </div>
-        `;
-    });
-}
 
-// Función para mostrar detalles del producto
-function displayProductDetails(product, bakeryInfo) {
-    document.getElementById('view-product-title').textContent = product.name;
-    
-    const expirationDate = product.lote && product.expiration_days ? 
-        new Date(new Date(product.lote).getTime() + (product.expiration_days * 24 * 60 * 60 * 1000)) : null;
-    
-    const content = `
-        <div class="space-y-6">
-            <!-- Información básica -->
-            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h4 class="font-semibold text-gray-800 mb-3">Información General</h4>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-sm font-medium text-gray-600">Nombre:</label>
-                        <p class="text-gray-800">${product.name}</p>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-gray-600">Precio:</label>
-                        <p class="text-gray-800">$${parseFloat(product.price).toLocaleString()}</p>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-gray-600">Unidad:</label>
-                        <p class="text-gray-800">${product.unit || 'unidades'}</p>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-gray-600">Valor Total:</label>
-                        <p class="text-gray-800 font-semibold">$${(product.stock * product.price).toLocaleString()}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Stock -->
-            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h4 class="font-semibold text-gray-800 mb-3">Control de Stock</h4>
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="text-center p-4 bg-white rounded-lg shadow-sm">
-                        <div class="text-2xl font-bold ${product.stock <= product.min_stock ? 'text-red-600' : 'text-green-600'}">                            ${product.stock}
-                        </div>
-                        <div class="text-sm text-gray-600 mt-1">Stock Actual</div>
-                    </div>
-                    <div class="text-center p-4 bg-white rounded-lg shadow-sm">
-                        <div class="text-2xl font-bold text-amber-600">${product.min_stock}</div>
-                        <div class="text-sm text-gray-600 mt-1">Stock Mínimo</div>
-                    </div>
-                    <div class="text-center p-4 bg-white rounded-lg shadow-sm">
-                        <div class="text-2xl font-bold text-blue-600">${product.stock > product.min_stock ? '✓' : '⚠'}</div>
-                        <div class="text-sm text-gray-600 mt-1">Estado</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Información de panadería -->
-            ${product.lote || product.expiration_days ? `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <h4 class="font-semibold text-gray-800 mb-3">Información de Producción</h4>
-                    <div class="grid grid-cols-2 gap-4">
-                        ${product.lote ? `
-                            <div>
-                                <label class="text-sm font-medium text-gray-600">Fecha de Lote:</label>
-                                <p class="text-gray-800">${new Date(product.lote).toLocaleDateString('es-ES')}</p>
-                            </div>
-                        ` : ''}
-                        ${product.expiration_days ? `
-                            <div>
-                                <label class="text-sm font-medium text-gray-600">Vida Útil:</label>
-                                <p class="text-gray-800">${product.expiration_days} días</p>
-                            </div>
-                        ` : ''}
-                        ${expirationDate ? `
-                            <div>
-                                <label class="text-sm font-medium text-gray-600">Fecha de Vencimiento:</label>
-                                <p class="text-gray-800 ${expirationDate < new Date() ? 'text-red-600 font-semibold' : ''}">
-                                    ${expirationDate.toLocaleDateString('es-ES')}
-                                </p>
-                            </div>
-                            <div>
-                                <label class="text-sm font-medium text-gray-600">Estado:</label>
-                                <p class="text-gray-800">
-                                    ${expirationDate < new Date() ? 
-                                        '<span class="text-red-600 font-semibold">🔴 Vencido</span>' : 
-                                        expirationDate < new Date(Date.now() + 7*24*60*60*1000) ? 
-                                        '<span class="text-amber-600 font-semibold">🟡 Por vencer</span>' :
-                                        '<span class="text-green-600 font-semibold">🟢 Fresco</span>'
-                                    }
-                                </p>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-    
-    document.getElementById('view-product-content').innerHTML = content;
-}
-
-// Función para editar producto
+// Función para editar producto con debug mejorado
 function editProduct(productId) {
     currentProductId = productId;
     
+    console.log('=== INICIANDO EDICIÓN DE PRODUCTO ===');
+    console.log('Product ID:', productId);
+    console.log('Inventory ID:', inventoryId);
+    
+    const url = `{{ url('inventories') }}/${inventoryId}/products/${productId}`;
+    console.log('URL de petición:', url);
+    
     // Cargar datos del producto
-    fetch(`/inventories/${inventoryId}/products/${productId}`, {
+    fetch(url, {
+        method: 'GET',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
         }
     })
-    .then(response => response.json())
+    .then(async response => {
+        console.log('=== RESPUESTA DEL SERVIDOR ===');
+        console.log('Status:', response.status);
+        console.log('Status Text:', response.statusText);
+        console.log('Headers:', [...response.headers.entries()]);
+        
+        const responseText = await response.text();
+        console.log('Response Text:', responseText);
+        
+        let data;
+        try {
+            data = JSON.parse(responseText);
+            console.log('Datos JSON parseados:', data);
+        } catch (parseError) {
+            console.error('Error al parsear JSON:', parseError);
+            console.log('Respuesta cruda:', responseText);
+            throw new Error('La respuesta no es JSON válido');
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return data;
+    })
     .then(data => {
-        if (data.success) {
+        console.log('=== PROCESANDO DATOS ===');
+        
+        if (data.success && data.product) {
             const product = data.product;
-            // Llenar formulario con datos actuales
-            document.getElementById('edit-product-id').value = productId;
-            document.getElementById('edit-name').value = product.name;
-            document.getElementById('edit-price').value = product.price;
-            document.getElementById('edit-stock').value = product.stock;
-            document.getElementById('edit-min-stock').value = product.min_stock;
-            document.getElementById('edit-unit').value = product.unit || 'unidades';
-            document.getElementById('edit-lote').value = product.lote || '';
-            document.getElementById('edit-expiration-days').value = product.expiration_days || '';
+            console.log('Producto recibido:', product);
             
-            openModal('edit-product');
+            // Validar que todos los elementos del formulario existan
+            const elements = {
+                'edit-product-id': productId,
+                'edit-name': product.name || '',
+                'edit-price': product.price || '',
+                'edit-stock': product.stock || '',
+                'edit-min-stock': product.min_stock || '',
+                'edit-unit': product.unit || 'unidades',
+                'edit-lote': product.lote || '',
+                'edit-expiration-days': product.expiration_days || ''
+            };
+            
+            console.log('Valores a llenar:', elements);
+            
+            let allElementsFound = true;
+            // Llenar formulario con validación
+            for (const [elementId, value] of Object.entries(elements)) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.value = value;
+                    console.log(`✓ ${elementId} llenado con:`, value);
+                } else {
+                    console.error(`✗ Elemento ${elementId} no encontrado`);
+                    allElementsFound = false;
+                }
+            }
+            
+            if (allElementsFound) {
+                console.log('✓ Todos los elementos llenados correctamente');
+                openModal('edit-product');
+            } else {
+                alert('Error: No se pudieron llenar todos los campos del formulario');
+            }
         } else {
-            alert('Error al cargar los datos del producto');
+            console.error('Respuesta inválida del servidor:', data);
+            const errorMsg = data.message || 'Respuesta inválida del servidor';
+            alert('Error al cargar los datos del producto: ' + errorMsg);
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cargar los datos del producto');
+        console.error('=== ERROR EN LA PETICIÓN ===');
+        console.error('Error completo:', error);
+        console.error('Stack trace:', error.stack);
+        alert('Error de conexión al cargar los datos del producto: ' + error.message);
     });
 }
 
@@ -848,8 +693,8 @@ function submitEditProduct(event) {
         submitButton.disabled = true;
     }
     
-    fetch(`/inventories/${inventoryId}/products/${currentProductId}`, {
-        method: 'PUT',
+    fetch(`{{ url('inventories') }}/${inventoryId}/products/${currentProductId}`, {
+        method: 'POST', // Usar POST con _method=PUT
         body: formData,
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -877,162 +722,121 @@ function submitEditProduct(event) {
     });
 }
 
-// Función para ajustar stock
-function adjustStock(productId) {
-    currentProductId = productId;
-    
-    // Cargar datos del producto
-    fetch(`/inventories/${inventoryId}/products/${productId}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const product = data.product;
-            // Llenar información actual
-            document.getElementById('adjust-product-id').value = productId;
-            document.getElementById('adjust-product-name').textContent = product.name;
-            document.getElementById('adjust-current-stock').textContent = `${product.stock} ${product.unit || 'unidades'}`;
-            
-            // Limpiar formulario
-            document.getElementById('adjustment').value = '';
-            document.getElementById('reason').value = '';
-            document.getElementById('other-reason').classList.add('hidden');
-            document.getElementById('new-stock-preview').textContent = '-';
-            
-            openModal('adjust-stock');
-        } else {
-            alert('Error al cargar los datos del producto');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cargar los datos del producto');
-    });
-}
 
-// Función para enviar ajuste de stock
-function submitAdjustStock(event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    
-    // Combinar razón personalizada si es "Otro"
-    const reason = formData.get('reason');
-    const otherReason = formData.get('other_reason');
-    if (reason === 'Otro' && otherReason) {
-        formData.set('reason', otherReason);
-    }
-    
-    // Mostrar loading
-    const submitButton = document.querySelector('button[onclick*="adjust-stock-form"]');
-    const originalText = submitButton ? submitButton.innerHTML : '';
-    if (submitButton) {
-        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Ajustando...';
-        submitButton.disabled = true;
-    }
-    
-    fetch(`/inventories/${inventoryId}/products/${currentProductId}/adjust-stock`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeModal('adjust-stock');
-            alert(`Stock ajustado correctamente.\nStock anterior: ${data.old_stock}\nStock nuevo: ${data.new_stock}`);
-            window.location.reload();
-        } else {
-            alert('Error: ' + (data.message || 'No se pudo ajustar el stock'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al ajustar el stock');
-    })
-    .finally(() => {
-        if (submitButton) {
-            submitButton.innerHTML = originalText;
-            submitButton.disabled = false;
-        }
-    });
-}
-
-// Función para eliminar producto
+// Función para eliminar producto con modal de confirmación
 function deleteProduct(productId, productName) {
-    if (confirm(`¿Estás seguro de que deseas eliminar el producto "${productName}"?`)) {
-        fetch(`/inventories/${inventoryId}/products/${productId}`, {
+    // Crear y mostrar modal de confirmación personalizado
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    confirmModal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-trash-alt text-red-600 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Eliminación</h3>
+                    <p class="text-sm text-gray-600">Esta acción no se puede deshacer</p>
+                </div>
+            </div>
+            <p class="text-gray-700 mb-6">
+                ¿Estás seguro de que deseas eliminar el producto <strong>"${productName}"</strong>?
+            </p>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-delete" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
+                    Cancelar
+                </button>
+                <button id="confirm-delete" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
+                    <i class="fas fa-trash mr-1"></i>Eliminar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(confirmModal);
+    
+    // Manejar eventos del modal
+    const cancelBtn = confirmModal.querySelector('#cancel-delete');
+    const confirmBtn = confirmModal.querySelector('#confirm-delete');
+    
+    const closeModal = () => {
+        document.body.removeChild(confirmModal);
+    };
+    
+    cancelBtn.addEventListener('click', closeModal);
+    
+    confirmBtn.addEventListener('click', () => {
+        // Deshabilitar botón y mostrar loading
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Eliminando...';
+        
+        console.log('Iniciando eliminación:', {
+            productId,
+            productName,
+            inventoryId,
+            url: `{{ url('inventories') }}/${inventoryId}/products/${productId}`
+        });
+        
+        fetch(`{{ url('inventories') }}/${inventoryId}/products/${productId}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(async response => {
+            console.log('Respuesta del servidor:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: response.url
+            });
+            
+            const data = await response.json();
+            console.log('Datos recibidos:', data);
+            
             if (data.success) {
-                window.location.reload();
+                closeModal();
+                // Mostrar mensaje de éxito
+                const successMessage = document.createElement('div');
+                successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                successMessage.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Producto "${productName}" eliminado correctamente</span>
+                    </div>
+                `;
+                document.body.appendChild(successMessage);
+                
+                setTimeout(() => {
+                    if (document.body.contains(successMessage)) {
+                        document.body.removeChild(successMessage);
+                    }
+                    window.location.reload();
+                }, 2000);
             } else {
-                alert('Error: ' + (data.message || 'No se pudo eliminar el producto'));
+                // Mostrar error
+                const errorMessage = data.message || 'No se pudo eliminar el producto';
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-trash mr-1"></i>Eliminar';
+                
+                alert('Error: ' + errorMessage);
+                console.error('Error del servidor:', data);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error al eliminar el producto');
+            console.error('Error en la petición:', error);
+            closeModal();
+            alert('Error de conexión al eliminar el producto');
         });
-    }
+    });
+    
+    // Cerrar modal al hacer click fuera
+    confirmModal.addEventListener('click', (e) => {
+        if (e.target === confirmModal) {
+            closeModal();
+        }
+    });
 }
 
-// Event listeners para interacciones dinámicas
-document.addEventListener('DOMContentLoaded', function() {
-    // Preview de nuevo stock en tiempo real
-    const adjustmentInput = document.getElementById('adjustment');
-    const newStockPreview = document.getElementById('new-stock-preview');
-    const currentStockElement = document.getElementById('adjust-current-stock');
-    
-    if (adjustmentInput && newStockPreview) {
-        adjustmentInput.addEventListener('input', function() {
-            const currentStockText = currentStockElement ? currentStockElement.textContent : '';
-            const currentStock = parseInt(currentStockText.split(' ')[0]) || 0;
-            const adjustment = parseInt(this.value) || 0;
-            const newStock = currentStock + adjustment;
-            
-            if (this.value === '') {
-                newStockPreview.textContent = '-';
-                newStockPreview.className = 'w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700';
-            } else {
-                newStockPreview.textContent = newStock + ' ' + (currentStockText.split(' ')[1] || 'unidades');
-                if (newStock < 0) {
-                    newStockPreview.className = 'w-full px-3 py-2 bg-red-100 border border-red-300 rounded-md text-red-700 font-semibold';
-                } else {
-                    newStockPreview.className = 'w-full px-3 py-2 bg-green-100 border border-green-300 rounded-md text-green-700 font-semibold';
-                }
-            }
-        });
-    }
-    
-    // Mostrar/ocultar campo de razón personalizada
-    const reasonSelect = document.getElementById('reason');
-    const otherReasonDiv = document.getElementById('other-reason');
-    const otherReasonInput = document.getElementById('other-reason-text');
-    
-    if (reasonSelect && otherReasonDiv && otherReasonInput) {
-        reasonSelect.addEventListener('change', function() {
-            if (this.value === 'Otro') {
-                otherReasonDiv.classList.remove('hidden');
-                otherReasonInput.required = true;
-            } else {
-                otherReasonDiv.classList.add('hidden');
-                otherReasonInput.required = false;
-                otherReasonInput.value = '';
-            }
-        });
-    }
-});
 </script>
 @endpush

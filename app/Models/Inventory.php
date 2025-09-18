@@ -12,6 +12,8 @@ class Inventory extends Model
     use HasFactory;
 
     protected $primaryKey = 'id_inventory';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'name',

@@ -26,7 +26,8 @@ class ProductController extends Controller implements HasMiddleware
         return [
             new Middleware('auth'),
             new Middleware('role:owner,manager,employee', only: ['index', 'show']),
-            new Middleware('role:owner,manager', only: ['create', 'store', 'edit', 'update', 'destroy']),
+            new Middleware('role:owner,manager,employee', only: ['create', 'store', 'edit', 'update']),
+            new Middleware('role:owner,manager', only: ['destroy']),
         ];
     }
 
@@ -178,9 +179,12 @@ class ProductController extends Controller implements HasMiddleware
             abort(404, 'Producto no encontrado en este inventario.');
         }
         
-        $this->authorize('view', $product);
+        // Verificación básica de acceso por rol
+        if (!in_array(auth()->user()->role, ['owner', 'manager', 'employee'])) {
+            abort(403, 'No tienes permisos para ver este producto.');
+        }
         
-        // Información adicional para panaderías
+        // Información adicional para panaderas
         $bakeryInfo = [
             'expiration_date' => $product->expiration_date,
             'days_until_expiration' => $product->expiration_date ? now()->diffInDays($product->expiration_date, false) : null,
@@ -196,8 +200,8 @@ class ProductController extends Controller implements HasMiddleware
                 'success' => true,
                 'product' => $product,
                 'bakery_info' => $bakeryInfo,
-                'can_edit' => Auth::user()->can('update', $product),
-                'can_delete' => Auth::user()->can('delete', $product)
+                'can_edit' => in_array(auth()->user()->role, ['owner', 'manager', 'employee']),
+                'can_delete' => in_array(auth()->user()->role, ['owner', 'manager'])
             ]);
         }
         
@@ -214,7 +218,10 @@ class ProductController extends Controller implements HasMiddleware
             abort(404, 'Producto no encontrado en este inventario.');
         }
         
-        $this->authorize('update', $product);
+        // Verificación básica de acceso por rol
+        if (!in_array(auth()->user()->role, ['owner', 'manager', 'employee'])) {
+            abort(403, 'No tienes permisos para editar este producto.');
+        }
         
         if ($request->ajax()) {
             return response()->json([
@@ -236,7 +243,10 @@ class ProductController extends Controller implements HasMiddleware
             abort(404, 'Producto no encontrado en este inventario.');
         }
         
-        $this->authorize('update', $product);
+        // Verificación básica de acceso por rol
+        if (!in_array(auth()->user()->role, ['owner', 'manager', 'employee'])) {
+            abort(403, 'No tienes permisos para editar este producto.');
+        }
         
         try {
             DB::beginTransaction();
@@ -297,7 +307,10 @@ class ProductController extends Controller implements HasMiddleware
             abort(404, 'Producto no encontrado en este inventario.');
         }
         
-        $this->authorize('delete', $product);
+        // Verificación básica de acceso por rol
+        if (!in_array(auth()->user()->role, ['owner', 'manager'])) {
+            abort(403, 'No tienes permisos para eliminar este producto.');
+        }
         
         try {
             DB::beginTransaction();

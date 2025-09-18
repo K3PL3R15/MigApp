@@ -26,6 +26,11 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+// Binding explícito para inventarios usando la clave primaria correcta
+Route::bind('inventory', function ($value) {
+    return \App\Models\Inventory::where('id_inventory', $value)->first() ?? abort(404);
+});
+
 // Rutas protegidas por autenticación
 Route::middleware(['auth'])->group(function () {
     

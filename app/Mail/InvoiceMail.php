@@ -10,7 +10,8 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class InvoiceMail extends Mailable implements ShouldQueue
+// Temporalmente sin cola para envío inmediato
+class InvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -39,16 +40,16 @@ class InvoiceMail extends Mailable implements ShouldQueue
 
     /**
      * Get the message content definition.
-     * Usa la misma vista que el show de ventas
+     * Usa vista específica para email
      */
     public function content(): Content
     {
         return new Content(
-            view: 'sales.show', // Misma vista que el show de ventas
+            view: 'emails.invoice', // Vista específica para email
             with: [
                 'sale' => $this->sale,
                 'invoiceNumber' => $this->invoiceNumber,
-                'isEmailView' => true, // Flag para distinguir si es email
+                'isEmailView' => true,
                 'issueDate' => now()->format('d/m/Y H:i'),
                 'bakery' => $this->sale->branch->name
             ]
