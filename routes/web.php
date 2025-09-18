@@ -31,6 +31,11 @@ Route::bind('inventory', function ($value) {
     return \App\Models\Inventory::where('id_inventory', $value)->first() ?? abort(404);
 });
 
+// Binding explícito para branches usando la clave primaria correcta
+Route::bind('branch', function ($value) {
+    return \App\Models\Branch::where('id_branch', $value)->first() ?? abort(404);
+});
+
 // Rutas protegidas por autenticación
 Route::middleware(['auth'])->group(function () {
     
@@ -39,9 +44,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [BranchController::class, 'index'])->name('index');
         Route::get('/create', [BranchController::class, 'create'])->name('create');
         Route::post('/', [BranchController::class, 'store'])->name('store');
+        Route::get('/{branch}', [BranchController::class, 'show'])->name('show');
         Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit');
         Route::put('/{branch}', [BranchController::class, 'update'])->name('update');
         Route::delete('/{branch}', [BranchController::class, 'destroy'])->name('destroy');
+        
+        // Ruta para obtener inventarios de una sucursal (para transferencias)
+        Route::get('/{branch}/inventories', [BranchController::class, 'inventories'])->name('inventories');
     });
     
     // === GESTIÓN DE INVENTARIOS ===
