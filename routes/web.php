@@ -36,6 +36,11 @@ Route::bind('branch', function ($value) {
     return \App\Models\Branch::where('id_branch', $value)->first() ?? abort(404);
 });
 
+// Binding explícito para request transfers usando la clave primaria correcta
+Route::bind('transfer', function ($value) {
+    return \App\Models\RequestTransfer::where('id_request', $value)->first() ?? abort(404);
+});
+
 // Rutas protegidas por autenticación
 Route::middleware(['auth'])->group(function () {
     
@@ -44,6 +49,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [BranchController::class, 'index'])->name('index');
         Route::get('/create', [BranchController::class, 'create'])->name('create');
         Route::post('/', [BranchController::class, 'store'])->name('store');
+        Route::get('/explore', [BranchController::class, 'explore'])->name('explore');
         Route::get('/{branch}', [BranchController::class, 'show'])->name('show');
         Route::get('/{branch}/edit', [BranchController::class, 'edit'])->name('edit');
         Route::put('/{branch}', [BranchController::class, 'update'])->name('update');
@@ -95,6 +101,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('transfers')->name('transfers.')->group(function () {
         Route::get('/', [RequestTransferController::class, 'index'])->name('index');
         Route::post('/', [RequestTransferController::class, 'store'])->name('store');
+        Route::get('/search-products', [RequestTransferController::class, 'searchProducts'])->name('search-products');
+        Route::get('/destination-branches', [RequestTransferController::class, 'getDestinationBranches'])->name('destination-branches');
         Route::post('/{transfer}/approve', [RequestTransferController::class, 'approve'])->name('approve');
         Route::post('/{transfer}/reject', [RequestTransferController::class, 'reject'])->name('reject');
         Route::post('/{transfer}/complete', [RequestTransferController::class, 'complete'])->name('complete');
@@ -103,10 +111,11 @@ Route::middleware(['auth'])->group(function () {
     
     // === GESTIÓN DE USUARIOS ===
     Route::prefix('users')->name('users.')->group(function () {
-        // Rutas básicas de usuarios (si existe UserController)
-        Route::get('/', function () {
-            return redirect()->route('dashboard')->with('info', 'Módulo de usuarios en desarrollo');
-        })->name('index');
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
     });
     
     // === PERFIL DE USUARIO ===

@@ -23,7 +23,7 @@ class BranchController extends Controller implements HasMiddleware
         return [
             new Middleware('auth'),
             new Middleware('role:owner', only: ['create', 'store', 'edit', 'update', 'destroy']),
-            new Middleware('role:owner,manager', only: ['index', 'show']),
+            new Middleware('role:owner,manager', only: ['index', 'show', 'explore', 'inventories']),
         ];
     }
 
@@ -63,7 +63,11 @@ class BranchController extends Controller implements HasMiddleware
      */
     public function create(Request $request)
     {
-        $this->authorize('create', Branch::class);
+        $user = Auth::user();
+        
+        if (!$user->isOwner()) {
+            abort(403, 'No tienes autorización para crear sucursales.');
+        }
         
         if ($request->ajax()) {
             return response()->json([
@@ -80,9 +84,18 @@ class BranchController extends Controller implements HasMiddleware
      */
     public function store(Request $request)
     {
-        $this->authorize('create', Branch::class);
-        
         $user = Auth::user();
+        
+        if (!$user->isOwner()) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes autorización para crear sucursales.'
+                ], 403);
+            }
+            abort(403, 'No tienes autorización para crear sucursales.');
+        }
+        
         
         $request->validate([
             'name'      => 'required|string|max:255',
@@ -164,7 +177,26 @@ class BranchController extends Controller implements HasMiddleware
      */
     public function show(Request $request, Branch $branch)
     {
-        $this->authorize('view', $branch);
+        $user = Auth::user();
+        
+        // Verificación de autorización directa
+        $canView = false;
+        
+        if ($user->isOwner()) {
+            $canView = $branch->id_user === $user->id;
+        } elseif ($user->role === 'manager') {
+            $canView = $branch->id_branch === $user->id_branch;
+        }
+        
+        if (!$canView) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes autorización para ver esta sucursal.'
+                ], 403);
+            }
+            abort(403, 'No tienes autorización para ver esta sucursal.');
+        }
         
         // Cargar inventarios con productos y contadores
         $branch->load([
@@ -208,7 +240,17 @@ class BranchController extends Controller implements HasMiddleware
      */
     public function edit(Request $request, Branch $branch)
     {
-        $this->authorize('update', $branch);
+        $user = Auth::user();
+        
+        if (!$user->isOwner() || $branch->id_user !== $user->id) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes autorización para editar esta sucursal.'
+                ], 403);
+            }
+            abort(403, 'No tienes autorización para editar esta sucursal.');
+        }
         
         if ($request->ajax()) {
             return response()->json([
@@ -225,7 +267,17 @@ class BranchController extends Controller implements HasMiddleware
      */
     public function update(Request $request, Branch $branch)
     {
-        $this->authorize('update', $branch);
+        $user = Auth::user();
+        
+        if (!$user->isOwner() || $branch->id_user !== $user->id) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes autorización para actualizar esta sucursal.'
+                ], 403);
+            }
+            abort(403, 'No tienes autorización para actualizar esta sucursal.');
+        }
         
         $request->validate([
             'name'      => 'required|string|max:255',
@@ -282,7 +334,21 @@ class BranchController extends Controller implements HasMiddleware
      */
     public function destroy(Request $request, Branch $branch)
     {
-        $this->authorize('delete', $branch);
+        $user = Auth::user();
+        
+        if (!$user->isOwner() || $branch->id_user !== $user->id || $branch->is_main) {
+            $message = $branch->is_main ? 
+                'No se puede eliminar la sucursal principal.' : 
+                'No tienes autorización para eliminar esta sucursal.';
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message
+                ], 403);
+            }
+            abort(403, $message);
+        }
         
         try {
             $branchName = $branch->name;
@@ -323,11 +389,105 @@ class BranchController extends Controller implements HasMiddleware
     }
     
     /**
+     * Explorar otras sucursales para transferencias
+     */
+    public function explore(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Solo owners y managers pueden explorar
+        if (!in_array($user->role, ['owner', 'manager'])) {
+            abort(403, 'No tienes permisos para explorar sucursales.');
+        }
+        
+        // Obtener sucursal de destino del usuario
+        $destinyBranch = null;
+        if ($user->role === 'manager') {
+            $destinyBranch = $user->branch;
+        }
+        
+        // Obtener sucursales disponibles según rol
+        $availableBranches = collect();
+        
+        if ($user->role === 'owner') {
+            // Owner puede explorar todas sus sucursales
+            $availableBranches = Branch::where('id_user', $user->id)
+                ->with(['inventories.products' => function($query) {
+                    $query->where('stock', '>', 0)
+                          ->orderBy('name')
+                          ->select('id_product', 'id_inventory', 'name', 'stock', 'min_stock', 'price', 'lote', 'expiration_days');
+                }])
+                ->withCount('inventories')
+                ->orderBy('is_main', 'desc')
+                ->orderBy('name')
+                ->get();
+        } elseif ($user->role === 'manager') {
+            // Manager puede explorar otras sucursales del mismo owner
+            $ownerBranches = Branch::where('id_user', $user->branch->id_user)
+                ->where('id_branch', '!=', $user->id_branch)
+                ->with(['inventories.products' => function($query) {
+                    $query->where('stock', '>', 0)
+                          ->orderBy('name')
+                          ->select('id_product', 'id_inventory', 'name', 'stock', 'min_stock', 'price', 'lote', 'expiration_days');
+                }])
+                ->withCount('inventories')
+                ->orderBy('is_main', 'desc')
+                ->orderBy('name')
+                ->get();
+            $availableBranches = $ownerBranches;
+        }
+        
+        // Estadísticas generales
+        $stats = [
+            'total_branches' => $availableBranches->count(),
+            'total_inventories' => $availableBranches->sum('inventories_count'),
+            'total_products' => $availableBranches->sum(function($branch) {
+                return $branch->inventories->sum(function($inventory) {
+                    return $inventory->products->count();
+                });
+            }),
+            'products_with_stock' => $availableBranches->sum(function($branch) {
+                return $branch->inventories->sum(function($inventory) {
+                    return $inventory->products->where('stock', '>', 0)->count();
+                });
+            })
+        ];
+        
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'branches' => $availableBranches,
+                'destiny_branch' => $destinyBranch,
+                'stats' => $stats,
+                'user_role' => $user->role
+            ]);
+        }
+        
+        return view('branches.explore', compact('availableBranches', 'destinyBranch', 'stats'));
+    }
+    
+    /**
      * Obtener inventarios de una sucursal (para transferencias)
      */
     public function inventories(Request $request, Branch $branch)
     {
-        $this->authorize('view', $branch);
+        $user = Auth::user();
+        
+        // Verificación de autorización directa
+        $canView = false;
+        
+        if ($user->isOwner()) {
+            $canView = $branch->id_user === $user->id;
+        } elseif ($user->role === 'manager') {
+            $canView = $branch->id_branch === $user->id_branch;
+        }
+        
+        if (!$canView) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes autorización para ver los inventarios de esta sucursal.'
+            ], 403);
+        }
         
         $inventories = $branch->inventories()
             ->with(['products' => function($query) {

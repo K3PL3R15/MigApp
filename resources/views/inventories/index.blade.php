@@ -128,21 +128,21 @@
                             
                             <!-- Botones de acción en posición absoluta -->
                             <div class="absolute top-4 right-4 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                @can('update', $inventory)
+                                @if(auth()->user()->isOwner() && $inventory->branch->id_user === auth()->id() || auth()->user()->role === 'manager' && $inventory->id_branch === auth()->user()->id_branch)
                                     <button onclick="event.preventDefault(); event.stopPropagation(); editInventory({{ $inventory->id_inventory }});" 
                                             class="bg-white shadow-md rounded-full w-8 h-8 flex items-center justify-center text-amber-600 hover:bg-amber-50 hover:text-amber-700 transition-colors" 
                                             title="Editar inventario">
                                         <i class="fas fa-edit text-xs"></i>
                                     </button>
-                                @endcan
+                                @endif
                                 
-                                @can('delete', $inventory)
+                                @if(auth()->user()->isOwner() && $inventory->branch->id_user === auth()->id())
                                     <button onclick="event.preventDefault(); event.stopPropagation(); deleteInventory({{ $inventory->id_inventory }}, '{{ $inventory->name }}');" 
                                             class="bg-white shadow-md rounded-full w-8 h-8 flex items-center justify-center text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors" 
                                             title="Eliminar inventario">
                                         <i class="fas fa-trash text-xs"></i>
                                     </button>
-                                @endcan
+                                @endif
                             </div>
                         </div>
                     @endforeach

@@ -32,14 +32,14 @@
                 @endif
             </div>
             
-            @can('update', $branch)
+            @if(auth()->user()->isOwner() && $branch->id_user === auth()->id())
                 <x-migapp.button 
                     variant="secondary" 
                     icon="fas fa-edit"
                     onclick="editBranch({{ $branch->id_branch }})">
                     Editar Sucursal
                 </x-migapp.button>
-            @endcan
+            @endif
         </div>
         
         <!-- Estadísticas de la sucursal -->
@@ -95,12 +95,12 @@
                         <i class="fas fa-boxes mr-2 text-purple-600"></i>
                         Inventarios ({{ $branch->inventories->count() }})
                     </h3>
-                    @can('create', App\Models\Inventory::class)
+                    @if(in_array(auth()->user()->role, ['owner', 'manager']))
                         <a href="{{ route('inventories.create') }}" 
                            class="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full hover:bg-purple-200 transition-colors">
                             <i class="fas fa-plus mr-1"></i>Nuevo Inventario
                         </a>
-                    @endcan
+                    @endif
                 </div>
                 
                 @if($branch->inventories->isEmpty())
@@ -122,18 +122,18 @@
                                         </div>
                                     </div>
                                     <div class="flex space-x-2">
-                                        @can('view', $inventory)
+                                        @if(auth()->user()->canManageBranch($inventory->id_branch))
                                             <a href="{{ route('inventories.show', $inventory) }}" 
                                                class="text-blue-600 hover:text-blue-800 text-sm bg-blue-50 px-2 py-1 rounded">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                        @endcan
-                                        @can('update', $inventory)
+                                        @endif
+                                        @if(auth()->user()->isOwner() && $inventory->branch->id_user === auth()->id() || auth()->user()->role === 'manager' && $inventory->id_branch === auth()->user()->id_branch)
                                             <a href="{{ route('inventories.edit', $inventory) }}" 
                                                class="text-amber-600 hover:text-amber-800 text-sm bg-amber-50 px-2 py-1 rounded">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                        @endcan
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -149,12 +149,12 @@
                         <i class="fas fa-users mr-2 text-green-600"></i>
                         Empleados ({{ $branch->users->count() }})
                     </h3>
-                    @can('create', App\Models\User::class)
+                    @if(auth()->user()->isOwner())
                         <a href="#" 
                            class="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full hover:bg-green-200 transition-colors">
                             <i class="fas fa-plus mr-1"></i>Nuevo Empleado
                         </a>
-                    @endcan
+                    @endif
                 </div>
                 
                 @if($branch->users->isEmpty())
@@ -241,7 +241,7 @@
     </div>
     
     <!-- Modal para editar sucursal (reutilizado) -->
-    @can('update', $branch)
+    @if(auth()->user()->isOwner() && $branch->id_user === auth()->id())
         <x-migapp.modal id="branch-edit-modal" max-width="md">
             <x-slot name="header">
                 <h3 class="text-lg font-medium text-gray-900">
@@ -285,7 +285,7 @@
                 </div>
             </x-slot>
         </x-migapp.modal>
-    @endcan
+    @endif
 @endsection
 
 @push('styles')

@@ -15,14 +15,23 @@
                 </p>
             </div>
             
-            @can('create', App\Models\Branch::class)
-                <x-migapp.button 
-                    variant="primary" 
-                    icon="fas fa-plus"
-                    onclick="openModal('branch-create-modal')">
-                    Nueva Sucursal
-                </x-migapp.button>
-            @endcan
+            <div class="flex items-center space-x-3">
+                @if(in_array(auth()->user()->role, ['owner', 'manager']))
+                    <a href="{{ route('branches.explore') }}" 
+                       class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg transition-colors duration-200 inline-flex items-center">
+                        <i class="fas fa-search mr-2"></i>Explorar Sucursales
+                    </a>
+                @endif
+                
+                @if(auth()->user()->isOwner())
+                    <x-migapp.button 
+                        variant="primary" 
+                        icon="fas fa-plus"
+                        onclick="openModal('branch-create-modal')">
+                        Nueva Sucursal
+                    </x-migapp.button>
+                @endif
+            </div>
         </div>
         
         <!-- Estadísticas generales -->
@@ -82,14 +91,14 @@
                     <h3 class="text-xl font-semibold text-gray-600 mb-2">No hay sucursales registradas</h3>
                     <p class="text-gray-500 mb-6">Crea tu primera sucursal para comenzar a gestionar tu negocio</p>
                     
-                    @can('create', App\Models\Branch::class)
+                    @if(auth()->user()->isOwner())
                         <x-migapp.button 
                             variant="primary" 
                             icon="fas fa-plus"
                             onclick="openModal('branch-create-modal')">
                             Crear Primera Sucursal
                         </x-migapp.button>
-                    @endcan
+                    @endif
                 </div>
             @else
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -112,6 +121,16 @@
                                         @if($branch->phone)
                                             <p class="text-xs text-gray-500"><i class="fas fa-phone mr-1"></i>{{ $branch->phone }}</p>
                                         @endif
+                                        <div class="mt-2 flex items-center">
+                                            <span class="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded font-mono">
+                                                <i class="fas fa-key mr-1"></i>{{ $branch->unique_code }}
+                                            </span>
+                                            <button onclick="copyToClipboard('{{ $branch->unique_code }}')" 
+                                                    class="ml-2 text-gray-400 hover:text-gray-600 text-xs" 
+                                                    title="Copiar código">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -144,58 +163,76 @@
                                 </span>
                                 
                                 <div class="flex space-x-2">
-                                    @can('view', $branch)
+                                    @if(auth()->user()->canManageBranch($branch->id_branch))
                                         <a href="{{ route('branches.show', $branch) }}" 
                                            class="text-blue-600 hover:text-blue-800 text-sm inline-flex items-center px-2 py-1 bg-blue-50 rounded">
                                             <i class="fas fa-eye mr-1"></i>Ver
                                         </a>
-                                    @endcan
+                                    @endif
                                     
-                                    @can('update', $branch)
+                                    @if(auth()->user()->isOwner() && $branch->id_user === auth()->id())
                                         <button onclick="editBranch({{ $branch->id_branch }})" 
                                                 class="text-amber-600 hover:text-amber-800 text-sm inline-flex items-center px-2 py-1 bg-amber-50 rounded">
                                             <i class="fas fa-edit mr-1"></i>Editar
                                         </button>
-                                    @endcan
+                                    @endif
                                     
-                                    @can('delete', $branch)
-                                        @if(!$branch->is_main)
-                                            <button onclick="deleteBranch({{ $branch->id_branch }}, '{{ $branch->name }}')" 
-                                                    class="text-red-600 hover:text-red-800 text-sm inline-flex items-center px-2 py-1 bg-red-50 rounded">
-                                                <i class="fas fa-trash mr-1"></i>Eliminar
-                                            </button>
-                                        @endif
-                                    @endcan
+                                    @if(auth()->user()->isOwner() && $branch->id_user === auth()->id() && !$branch->is_main)
+                                        <button onclick="deleteBranch({{ $branch->id_branch }}, '{{ $branch->name }}')" 
+                                                class="text-red-600 hover:text-red-800 text-sm inline-flex items-center px-2 py-1 bg-red-50 rounded">
+                                            <i class="fas fa-trash mr-1"></i>Eliminar
+                                        </button>
+                                    @endif
                                 </div>
                             </div>
                         </div>
                     @endforeach
                     
                     <!-- Botón para agregar nueva sucursal -->
-                    @can('create', App\Models\Branch::class)
-                        <div class="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-6 hover:border-gray-400 transition-colors cursor-pointer" onclick="openModal('branch-create-modal')">
+                    @if(auth()->user()->isOwner())
+                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-2 border-dashed border-gray-300 hover:border-gray-400 cursor-pointer min-h-[400px] flex items-center justify-center" onclick="openModal('branch-create-modal')">
                             <div class="text-center">
-                                <div class="text-gray-400 text-4xl mb-4">
+                                <!-- Header similar a las otras tarjetas -->
+                                <div class="flex justify-center mb-4">
+                                    <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-plus text-gray-400 text-xl"></i>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-gray-400 text-2xl mb-3">
                                     <i class="fas fa-plus-circle"></i>
                                 </div>
                                 <h3 class="text-lg font-medium text-gray-600 mb-2">Agregar Sucursal</h3>
-                                <p class="text-sm text-gray-500 mb-4">Expande tu negocio</p>
+                                <p class="text-sm text-gray-500 mb-6">Expande tu negocio creando una nueva ubicación</p>
+                                
+                                <!-- Espacio para coincidir con las estadísticas -->
+                                <div class="grid grid-cols-2 gap-4 py-4 mb-4 opacity-50">
+                                    <div class="text-center">
+                                        <div class="text-xl font-bold text-gray-400">+</div>
+                                        <div class="text-xs text-gray-400">Empleados</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="text-xl font-bold text-gray-400">+</div>
+                                        <div class="text-xs text-gray-400">Inventarios</div>
+                                    </div>
+                                </div>
                                 
                                 <x-migapp.button 
-                                    variant="outline-primary" 
-                                    size="sm">
-                                    Crear Sucursal
+                                    variant="primary" 
+                                    size="sm"
+                                    class="w-full">
+                                    <i class="fas fa-plus mr-2"></i>Crear Sucursal
                                 </x-migapp.button>
                             </div>
                         </div>
-                    @endcan
+                    @endif
                 </div>
             @endif
         </div>
     </div>
     
     <!-- Modal para crear sucursal -->
-    @can('create', App\Models\Branch::class)
+    @if(auth()->user()->isOwner())
         <x-migapp.modal id="branch-create-modal" max-width="md">
             <x-slot name="header">
                 <h3 class="text-lg font-medium text-gray-900">
@@ -241,7 +278,7 @@
                 </div>
             </x-slot>
         </x-migapp.modal>
-    @endcan
+    @endif
     
     <!-- Modal para editar sucursal -->
         <x-migapp.modal id="branch-edit-modal" max-width="md">
@@ -516,6 +553,50 @@ function deleteBranch(branchId, branchName) {
         console.error('Error:', error);
         showNotification('Error de conexión al eliminar la sucursal', 'error');
     });
+}
+
+// Función para copiar código al portapapeles
+function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        // API moderna del portapapeles
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('Código copiado al portapapeles', 'success');
+        }).catch(err => {
+            console.error('Error al copiar:', err);
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        // Fallback para navegadores más antiguos
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+// Función fallback para copiar texto
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification('Código copiado al portapapeles', 'success');
+        } else {
+            showNotification('Error al copiar el código', 'error');
+        }
+    } catch (err) {
+        console.error('Error al copiar:', err);
+        showNotification('Error al copiar el código', 'error');
+    }
+
+    document.body.removeChild(textArea);
 }
 
 // Función para mostrar notificaciones (reutilizada del módulo de ventas)

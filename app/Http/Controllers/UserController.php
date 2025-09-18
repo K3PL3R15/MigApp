@@ -17,6 +17,7 @@ class UserController extends Controller implements HasMiddleware
         return [
             new Middleware('auth'),
             new Middleware('role:owner,manager', only: ['index', 'edit', 'update', 'destroy']),
+            new Middleware('role:owner', only: ['store']),
         ];
     }
 
@@ -90,6 +91,76 @@ class UserController extends Controller implements HasMiddleware
         abort(403, 'Acceso no autorizado');
     }
 
+    public function store(Request $request)
+    {
+        $authUser = Auth::user();
+
+        // Solo owners pueden crear usuarios
+        if (!$authUser->isOwner()) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes autorización para crear usuarios.'
+                ], 403);
+            }
+            abort(403, 'No tienes autorización para crear usuarios.');
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'role' => 'required|in:manager,employee',
+            'id_branch' => 'required|exists:branches,id_branch',
+            'password' => 'required|string|min:8',
+        ]);
+
+        // Verificar que la sucursal pertenezca al owner
+        $branch = Branch::where('id_branch', $request->id_branch)
+                       ->where('id_user', $authUser->id)
+                       ->first();
+
+        if (!$branch) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La sucursal seleccionada no te pertenece.'
+                ], 403);
+            }
+            return redirect()->back()->with('error', 'La sucursal seleccionada no te pertenece.');
+        }
+
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'role' => $request->role,
+                'id_branch' => $request->id_branch,
+                'password' => bcrypt($request->password),
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Usuario creado correctamente.',
+                    'user' => $user->load('branch')
+                ]);
+            }
+
+            return redirect()->route('users.index')
+                ->with('success', 'Usuario creado correctamente.');
+                
+        } catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al crear el usuario.'
+                ], 422);
+            }
+            
+            return redirect()->back()->with('error', 'Error al crear el usuario.');
+        }
+    }
+
     public function edit(Request $request, User $user)
     {
         $authUser = Auth::user();
@@ -107,7 +178,9 @@ class UserController extends Controller implements HasMiddleware
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'html' => view('users.partials.edit-form', compact('user', 'branches', 'roles'))->render()
+                    'user' => $user,
+                    'branches' => $branches,
+                    'roles' => $roles
                 ]);
             }
             
@@ -120,7 +193,8 @@ class UserController extends Controller implements HasMiddleware
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'html' => view('users.partials.edit-form', compact('user', 'roles'))->render()
+                    'user' => $user,
+                    'roles' => $roles
                 ]);
             }
             

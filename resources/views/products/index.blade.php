@@ -160,14 +160,14 @@
                         @endif
                     </p>
                     
-                    @can('create', App\Models\Product::class)
+                    @if(in_array(auth()->user()->role, ['owner', 'manager']))
                         <x-migapp.button 
                             variant="primary" 
                             icon="fas fa-plus"
                             onclick="openModal('create-product')">
                             Agregar Producto
                         </x-migapp.button>
-                    @endcan
+                    @endif
                 </div>
             @else
                 <!-- Encabezados de tabla -->

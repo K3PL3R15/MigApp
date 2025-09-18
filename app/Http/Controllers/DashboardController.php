@@ -42,7 +42,15 @@ class DashboardController extends Controller
                 'icon' => 'fas fa-store',
                 'color' => 'indigo',
                 'route' => 'branches.index',
-                'roles' => ['owner']
+                'roles' => ['owner', 'manager']
+            ],
+            'transfers' => [
+                'name' => 'Transferencias',
+                'description' => 'Gestiona transferencias entre sucursales',
+                'icon' => 'fas fa-exchange-alt',
+                'color' => 'amber',
+                'route' => 'transfers.index',
+                'roles' => ['owner', 'manager']
             ],
             'users' => [
                 'name' => 'Personal',
